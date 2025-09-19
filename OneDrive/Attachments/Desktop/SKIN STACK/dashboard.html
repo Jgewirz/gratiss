@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkinStack - System Monitoring Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            border-radius: 12px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            color: #2d3748;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.online { background: #48bb78; }
+        .status-dot.offline { background: #f56565; }
+        .status-dot.warning { background: #ed8936; }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.15);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .metric {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2d3748;
+            margin: 10px 0;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-change {
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .metric-change.positive { color: #48bb78; }
+        .metric-change.negative { color: #f56565; }
+
+        .full-width-card {
+            grid-column: 1 / -1;
+        }
+
+        .activity-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .activity-item {
+            padding: 12px;
+            border-left: 3px solid #667eea;
+            background: #f7fafc;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .activity-item.webhook { border-left-color: #48bb78; }
+        .activity-item.click { border-left-color: #4299e1; }
+        .activity-item.conversion { border-left-color: #ed8936; }
+        .activity-item.error { border-left-color: #f56565; }
+
+        .activity-content {
+            flex: 1;
+        }
+
+        .activity-type {
+            font-size: 12px;
+            color: #718096;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .activity-detail {
+            font-size: 14px;
+            color: #2d3748;
+        }
+
+        .activity-time {
+            font-size: 12px;
+            color: #a0aec0;
+        }
+
+        .chart-container {
+            height: 200px;
+            position: relative;
+        }
+
+        .mini-chart {
+            display: flex;
+            align-items: flex-end;
+            height: 60px;
+            gap: 2px;
+            margin-top: 10px;
+        }
+
+        .chart-bar {
+            flex: 1;
+            background: linear-gradient(to top, #667eea, #a78bfa);
+            border-radius: 2px 2px 0 0;
+            transition: opacity 0.2s;
+        }
+
+        .chart-bar:hover {
+            opacity: 0.8;
+        }
+
+        .system-checks {
+            display: grid;
+            gap: 10px;
+        }
+
+        .check-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f7fafc;
+            border-radius: 6px;
+        }
+
+        .check-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .check-icon.success { color: #48bb78; }
+        .check-icon.error { color: #f56565; }
+        .check-icon.warning { color: #ed8936; }
+
+        .check-name {
+            flex: 1;
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        .check-value {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: #5a67d8;
+        }
+
+        .refresh-btn:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #fff5f5;
+            border: 1px solid #feb2b2;
+            color: #c53030;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .performance-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .perf-item {
+            text-align: center;
+            padding: 10px;
+            background: #f7fafc;
+            border-radius: 6px;
+        }
+
+        .perf-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .perf-label {
+            font-size: 11px;
+            color: #718096;
+            margin-top: 2px;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .performance-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                🚀 SkinStack Monitoring Dashboard
+            </h1>
+            <div class="status-indicator">
+                <span id="connection-status">Checking...</span>
+                <span id="status-dot" class="status-dot offline"></span>
+                <button class="refresh-btn" onclick="refreshDashboard()">
+                    <span id="refresh-icon">🔄</span>
+                    <span id="refresh-text">Refresh</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="error-message" id="error-message"></div>
+
+        <!-- Key Metrics -->
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">💰 Today's Revenue</span>
+                    <span style="color: #48bb78;">●</span>
+                </div>
+                <div class="metric" id="revenue-today">$0.00</div>
+                <div class="metric-label">Total Sales</div>
+                <div class="metric-change positive" id="revenue-change">+0% from yesterday</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">👆 Clicks Today</span>
+                    <span style="color: #4299e1;">●</span>
+                </div>
+                <div class="metric" id="clicks-today">0</div>
+                <div class="metric-label">Total Clicks</div>
+                <div class="mini-chart" id="clicks-chart"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🎯 Conversion Rate</span>
+                    <span style="color: #ed8936;">●</span>
+                </div>
+                <div class="metric" id="conversion-rate">0.0%</div>
+                <div class="metric-label">Last 7 Days</div>
+                <div class="metric-change" id="conversion-trend">No change</div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">👥 Active Influencers</span>
+                    <span style="color: #9f7aea;">●</span>
+                </div>
+                <div class="metric" id="active-influencers">0</div>
+                <div class="metric-label">This Month</div>
+                <div class="metric-change positive" id="influencer-change">+0 new</div>
+            </div>
+        </div>
+
+        <!-- System Health & Performance -->
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🏥 System Health</span>
+                    <span id="health-indicator" style="color: #48bb78;">●</span>
+                </div>
+                <div class="system-checks" id="system-checks">
+                    <div class="check-item">
+                        <span class="check-icon success">✓</span>
+                        <span class="check-name">Database</span>
+                        <span class="check-value" id="db-status">Checking...</span>
+                    </div>
+                    <div class="check-item">
+                        <span class="check-icon success">✓</span>
+                        <span class="check-name">Redis Cache</span>
+                        <span class="check-value" id="redis-status">Checking...</span>
+                    </div>
+                    <div class="check-item">
+                        <span class="check-icon success">✓</span>
+                        <span class="check-name">API Response</span>
+                        <span class="check-value" id="api-latency">Checking...</span>
+                    </div>
+                    <div class="check-item">
+                        <span class="check-icon success">✓</span>
+                        <span class="check-name">Webhook Queue</span>
+                        <span class="check-value" id="webhook-queue">0 pending</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">⚡ Performance Metrics</span>
+                </div>
+                <div class="performance-grid">
+                    <div class="perf-item">
+                        <div class="perf-value" id="p50-latency">0ms</div>
+                        <div class="perf-label">P50 Latency</div>
+                    </div>
+                    <div class="perf-item">
+                        <div class="perf-value" id="p95-latency">0ms</div>
+                        <div class="perf-label">P95 Latency</div>
+                    </div>
+                    <div class="perf-item">
+                        <div class="perf-value" id="p99-latency">0ms</div>
+                        <div class="perf-label">P99 Latency</div>
+                    </div>
+                    <div class="perf-item">
+                        <div class="perf-value" id="uptime">100%</div>
+                        <div class="perf-label">Uptime</div>
+                    </div>
+                </div>
+                <div class="mini-chart" id="performance-chart" style="margin-top: 15px;"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">💵 Commission Summary</span>
+                </div>
+                <div style="display: grid; gap: 10px; margin-top: 10px;">
+                    <div style="display: flex; justify-content: space-between; padding: 8px; background: #f7fafc; border-radius: 4px;">
+                        <span style="color: #4a5568; font-size: 14px;">Pending Payouts</span>
+                        <span style="color: #2d3748; font-weight: bold;" id="pending-payouts">$0.00</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px; background: #f7fafc; border-radius: 4px;">
+                        <span style="color: #4a5568; font-size: 14px;">Platform Earnings</span>
+                        <span style="color: #2d3748; font-weight: bold;" id="platform-earnings">$0.00</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; padding: 8px; background: #e6fffa; border-radius: 4px;">
+                        <span style="color: #234e52; font-size: 14px;">Total Processed</span>
+                        <span style="color: #234e52; font-weight: bold;" id="total-processed">$0.00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="card full-width-card">
+            <div class="card-header">
+                <span class="card-title">📊 Recent Activity</span>
+                <span style="font-size: 12px; color: #718096;">Last 50 events</span>
+            </div>
+            <div class="activity-list" id="activity-list">
+                <div class="activity-item click">
+                    <div class="activity-content">
+                        <div class="activity-type">Loading...</div>
+                        <div class="activity-detail">Fetching recent activity...</div>
+                    </div>
+                    <div class="activity-time">--:--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let refreshInterval;
+        let isRefreshing = false;
+
+        // Initialize dashboard
+        async function initDashboard() {
+            await checkConnection();
+            await loadDashboardData();
+
+            // Auto-refresh every 10 seconds
+            refreshInterval = setInterval(async () => {
+                if (!isRefreshing) {
+                    await loadDashboardData();
+                }
+            }, 10000);
+        }
+
+        // Check API connection
+        async function checkConnection() {
+            const statusDot = document.getElementById('status-dot');
+            const connectionStatus = document.getElementById('connection-status');
+
+            try {
+                const response = await fetch(`${API_BASE}/healthz`);
+                const data = await response.json();
+
+                if (data.ok) {
+                    statusDot.className = 'status-dot online';
+                    connectionStatus.textContent = 'Connected';
+                    document.getElementById('api-latency').textContent = `${data.latency_ms.toFixed(1)}ms`;
+                    document.getElementById('db-status').textContent = data.database === 'connected' ? 'Connected' : 'Error';
+                    hideError();
+                } else {
+                    throw new Error('API unhealthy');
+                }
+            } catch (error) {
+                statusDot.className = 'status-dot offline';
+                connectionStatus.textContent = 'Disconnected';
+                showError('Cannot connect to API. Make sure the server is running on port 8000.');
+            }
+        }
+
+        // Load dashboard data
+        async function loadDashboardData() {
+            if (isRefreshing) return;
+
+            try {
+                // Get dashboard stats
+                const statsResponse = await fetch(`${API_BASE}/api/stats/dashboard`);
+                if (statsResponse.ok) {
+                    const stats = await statsResponse.json();
+                    updateDashboardStats(stats);
+                }
+
+                // Get recent activity (simulated for now)
+                updateRecentActivity();
+
+                // Update performance metrics
+                updatePerformanceMetrics();
+
+                // Update charts
+                updateCharts();
+
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                showError('Failed to load dashboard data. Check console for details.');
+            }
+        }
+
+        // Update dashboard statistics
+        function updateDashboardStats(stats) {
+            // Update metrics from API response
+            if (stats.overview) {
+                document.getElementById('clicks-today').textContent = stats.overview.total_clicks.toLocaleString();
+                document.getElementById('revenue-today').textContent = `$${stats.overview.total_revenue.toFixed(2)}`;
+                document.getElementById('conversion-rate').textContent = `${stats.overview.avg_conversion_rate.toFixed(1)}%`;
+                document.getElementById('active-influencers').textContent = stats.overview.total_influencers.toLocaleString();
+                document.getElementById('platform-earnings').textContent = `$${stats.overview.platform_earnings.toFixed(2)}`;
+            }
+
+            // Update Redis status
+            document.getElementById('redis-status').textContent = 'Connected';
+        }
+
+        // Update recent activity (simulated)
+        function updateRecentActivity() {
+            const activities = [
+                { type: 'click', icon: '👆', label: 'Click', detail: 'Link YOyqC7 clicked from Instagram', time: 'Just now' },
+                { type: 'webhook', icon: '🔔', label: 'Webhook', detail: 'Refersion webhook processed (Order #1234)', time: '2 min ago' },
+                { type: 'conversion', icon: '💰', label: 'Conversion', detail: '$125.00 sale tracked for @influencer123', time: '5 min ago' },
+                { type: 'click', icon: '👆', label: 'Click', detail: 'Link AbC123 clicked from TikTok', time: '7 min ago' },
+                { type: 'webhook', icon: '🔔', label: 'Webhook', detail: 'Duplicate webhook rejected (idempotency)', time: '10 min ago' },
+            ];
+
+            const activityList = document.getElementById('activity-list');
+            activityList.innerHTML = activities.map(activity => `
+                <div class="activity-item ${activity.type}">
+                    <div class="activity-content">
+                        <div class="activity-type">${activity.icon} ${activity.label}</div>
+                        <div class="activity-detail">${activity.detail}</div>
+                    </div>
+                    <div class="activity-time">${activity.time}</div>
+                </div>
+            `).join('');
+        }
+
+        // Update performance metrics
+        function updatePerformanceMetrics() {
+            // Simulated metrics (would come from real monitoring)
+            document.getElementById('p50-latency').textContent = '28ms';
+            document.getElementById('p95-latency').textContent = '59ms';
+            document.getElementById('p99-latency').textContent = '125ms';
+            document.getElementById('uptime').textContent = '99.9%';
+
+            // Update pending payouts (simulated)
+            document.getElementById('pending-payouts').textContent = '$1,250.00';
+            document.getElementById('total-processed').textContent = '$15,750.00';
+        }
+
+        // Update charts
+        function updateCharts() {
+            // Clicks chart (last 7 days)
+            const clicksChart = document.getElementById('clicks-chart');
+            const clicksData = [40, 65, 80, 120, 95, 140, 110]; // Simulated data
+            const maxClicks = Math.max(...clicksData);
+
+            clicksChart.innerHTML = clicksData.map(value =>
+                `<div class="chart-bar" style="height: ${(value/maxClicks) * 100}%" title="${value} clicks"></div>`
+            ).join('');
+
+            // Performance chart
+            const perfChart = document.getElementById('performance-chart');
+            const perfData = [25, 28, 32, 27, 30, 29, 28, 31, 26, 29]; // Simulated latencies
+            const maxPerf = Math.max(...perfData);
+
+            perfChart.innerHTML = perfData.map(value =>
+                `<div class="chart-bar" style="height: ${(value/maxPerf) * 100}%" title="${value}ms"></div>`
+            ).join('');
+        }
+
+        // Manual refresh
+        async function refreshDashboard() {
+            if (isRefreshing) return;
+
+            isRefreshing = true;
+            const refreshBtn = document.querySelector('.refresh-btn');
+            const refreshIcon = document.getElementById('refresh-icon');
+            const refreshText = document.getElementById('refresh-text');
+
+            refreshBtn.disabled = true;
+            refreshIcon.innerHTML = '<span class="loading"></span>';
+            refreshText.textContent = 'Refreshing...';
+
+            await checkConnection();
+            await loadDashboardData();
+
+            setTimeout(() => {
+                refreshBtn.disabled = false;
+                refreshIcon.textContent = '🔄';
+                refreshText.textContent = 'Refresh';
+                isRefreshing = false;
+            }, 1000);
+        }
+
+        // Error handling
+        function showError(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = `⚠️ ${message}`;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error-message').style.display = 'none';
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', initDashboard);
+
+        // Cleanup on unload
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__memory__add_observations",
+      "Bash(python test:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(curl:*)",
+      "mcp__memory__create_entities",
+      "Bash(taskkill:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "mcp__postgres-neon__query"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

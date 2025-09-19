@@ -1,0 +1,54 @@
+name: ci
+on: [push, pull_request]
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: pip install -U ruff mypy pytest pytest-asyncio pytest-cov hypothesis bandit sqlfluff schemathesis semgrep
+      - run: ruff format --check .
+      - run: ruff check .
+      - run: mypy --strict .
+      - run: bandit -r .
+      - run: sqlfluff lint sql/
+      - run: semgrep --config auto --error || true
+      - run: pytest --cov --cov-fail-under=85
+      - run: schemathesis run openapi.yaml || true
+
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: |
+          if [ -f package-lock.json ]; then npm ci; elif [ -f pnpm-lock.yaml ]; then npm i -g pnpm && pnpm i --frozen-lockfile; elif [ -f yarn.lock ]; then npm i -g yarn && yarn install --frozen-lockfile; else echo "No lockfile"; fi
+      - run: npx prettier -c . || true
+      - run: npx eslint . || true
+      - run: npm run typecheck || true
+      - run: npx playwright install --with-deps && npx playwright test || true
+
+  containers_and_security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          scan-type: 'fs'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+
+

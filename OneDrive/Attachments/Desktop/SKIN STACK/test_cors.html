@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS Test - SkinStack API</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-section {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 SkinStack API - CORS Test</h1>
+
+    <div class="test-section">
+        <h2>Test 1: Health Check (GET)</h2>
+        <button onclick="testHealthCheck()">Test Health Check</button>
+        <div id="health-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Create Link (POST)</h2>
+        <button onclick="testCreateLink()">Test Create Link</button>
+        <div id="link-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 3: Stats API (GET)</h2>
+        <button onclick="testStats()">Test Stats API</button>
+        <div id="stats-result"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+
+        async function testHealthCheck() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.innerHTML = 'Testing...';
+
+            try {
+                const response = await fetch(`${API_URL}/healthz`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                resultDiv.innerHTML = `
+                    <p class="success">✅ CORS Test Passed!</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                    <p>Response Headers:</p>
+                    <pre>Access-Control-Allow-Origin: ${response.headers.get('access-control-allow-origin')}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ CORS Test Failed!</p>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+
+        async function testCreateLink() {
+            const resultDiv = document.getElementById('link-result');
+            resultDiv.innerHTML = 'Testing...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/links/create`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        destination_url: 'https://example.com/product',
+                        influencer_id: 1,
+                        program_id: 1,
+                        campaign_name: 'CORS Test Campaign'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ POST Request Passed!</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="error">❌ Request Failed: ${response.status}</p>
+                        <pre>${await response.text()}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ CORS Test Failed!</p>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+
+        async function testStats() {
+            const resultDiv = document.getElementById('stats-result');
+            resultDiv.innerHTML = 'Testing...';
+
+            try {
+                const response = await fetch(`${API_URL}/api/stats/dashboard`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+
+                const data = await response.json();
+                resultDiv.innerHTML = `
+                    <p class="success">✅ Stats API Test Passed!</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ CORS Test Failed!</p>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkinStack - Real-Time Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            border-radius: 12px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            color: #2d3748;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 15px;
+            background: #f7fafc;
+            border-radius: 8px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected { background: #48bb78; }
+        .status-dot.disconnected { background: #f56565; }
+        .status-dot.connecting { background: #ed8936; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .metric {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2d3748;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+
+        .metric.updated {
+            animation: flash 0.5s;
+        }
+
+        @keyframes flash {
+            0%, 100% { background: transparent; }
+            50% { background: rgba(72, 187, 120, 0.1); }
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .full-width-card {
+            grid-column: 1 / -1;
+        }
+
+        .event-feed {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        .event-feed::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .event-feed::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+
+        .event-feed::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 3px;
+        }
+
+        .event-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            background: #f7fafc;
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .event-item.click {
+            border-left-color: #4299e1;
+        }
+
+        .event-item.conversion {
+            border-left-color: #48bb78;
+            background: #f0fff4;
+        }
+
+        .event-item.webhook {
+            border-left-color: #ed8936;
+        }
+
+        .event-item.error {
+            border-left-color: #f56565;
+            background: #fff5f5;
+        }
+
+        .event-content {
+            flex: 1;
+        }
+
+        .event-type {
+            font-size: 12px;
+            color: #718096;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .event-detail {
+            font-size: 14px;
+            color: #2d3748;
+            font-weight: 500;
+        }
+
+        .event-time {
+            font-size: 12px;
+            color: #a0aec0;
+            white-space: nowrap;
+        }
+
+        .live-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #f56565;
+            border-radius: 50%;
+            animation: blink 1s infinite;
+            margin-left: 5px;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .chart-container {
+            height: 100px;
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            margin-top: 15px;
+        }
+
+        .chart-bar {
+            flex: 1;
+            background: linear-gradient(to top, #667eea, #a78bfa);
+            border-radius: 2px 2px 0 0;
+            transition: height 0.3s ease;
+            min-height: 2px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            padding: 10px;
+            background: #f7fafc;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #718096;
+            margin-top: 2px;
+            text-transform: uppercase;
+        }
+
+        .alert {
+            background: #fff5f5;
+            border: 1px solid #feb2b2;
+            color: #c53030;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-10px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .reconnect-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .reconnect-btn:hover {
+            background: #5a67d8;
+        }
+
+        .reconnect-btn:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                🚀 SkinStack Real-Time Dashboard
+                <span class="live-indicator"></span>
+            </h1>
+            <div class="connection-status">
+                <span id="ws-status">Connecting...</span>
+                <span id="status-dot" class="status-dot connecting"></span>
+                <button class="reconnect-btn" onclick="reconnectWebSocket()" id="reconnect-btn" style="display: none;">
+                    Reconnect
+                </button>
+            </div>
+        </header>
+
+        <div class="alert" id="alert-box"></div>
+
+        <!-- Key Metrics -->
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">💰 Today's Revenue</span>
+                </div>
+                <div class="metric" id="revenue-today">$0.00</div>
+                <div class="metric-label">Total Sales</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="conversions-today">0</div>
+                        <div class="stat-label">Conversions</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="avg-order-value">$0</div>
+                        <div class="stat-label">Avg Order</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">👆 Live Clicks</span>
+                </div>
+                <div class="metric" id="clicks-today">0</div>
+                <div class="metric-label">Total Clicks Today</div>
+                <div class="chart-container" id="clicks-chart"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🎯 Conversion Rate</span>
+                </div>
+                <div class="metric" id="conversion-rate">0.0%</div>
+                <div class="metric-label">Today's Performance</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="unique-visitors">0</div>
+                        <div class="stat-label">Unique</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="platform-earnings">$0</div>
+                        <div class="stat-label">Earnings</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">🌐 System Status</span>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="ws-connections">0</div>
+                        <div class="stat-label">Connections</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="active-users">0</div>
+                        <div class="stat-label">Active Now</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="webhooks-processed">0</div>
+                        <div class="stat-label">Webhooks</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="api-latency">0ms</div>
+                        <div class="stat-label">Latency</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-Time Event Feed -->
+        <div class="card full-width-card">
+            <div class="card-header">
+                <span class="card-title">
+                    📊 Real-Time Event Feed
+                    <span class="live-indicator"></span>
+                </span>
+                <span style="font-size: 12px; color: #718096;" id="event-count">0 events</span>
+            </div>
+            <div class="event-feed" id="event-feed">
+                <!-- Events will be added here dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // WebSocket connection
+        let ws = null;
+        let reconnectAttempts = 0;
+        let maxReconnectAttempts = 10;
+        let reconnectDelay = 1000; // Start with 1 second
+        let stats = {
+            clicks: 0,
+            conversions: 0,
+            revenue: 0,
+            webhooks: 0,
+            uniqueVisitors: new Set()
+        };
+        let clickHistory = new Array(20).fill(0);
+        let eventCount = 0;
+        const maxEvents = 50;
+
+        function connectWebSocket() {
+            const wsUrl = `ws://localhost:8000/ws?client_id=dashboard_${Date.now()}`;
+
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = function() {
+                    console.log('WebSocket connected');
+                    updateConnectionStatus('connected');
+                    reconnectAttempts = 0;
+                    reconnectDelay = 1000;
+
+                    // Request current stats
+                    ws.send(JSON.stringify({
+                        type: 'get_stats'
+                    }));
+
+                    // Subscribe to events
+                    ws.send(JSON.stringify({
+                        type: 'subscribe',
+                        events: ['click', 'conversion', 'webhook', 'metric', 'error']
+                    }));
+                };
+
+                ws.onmessage = function(event) {
+                    try {
+                        const message = JSON.parse(event.data);
+                        handleWebSocketMessage(message);
+                    } catch (error) {
+                        console.error('Error parsing WebSocket message:', error);
+                    }
+                };
+
+                ws.onclose = function() {
+                    console.log('WebSocket disconnected');
+                    updateConnectionStatus('disconnected');
+                    attemptReconnect();
+                };
+
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    updateConnectionStatus('disconnected');
+                };
+
+            } catch (error) {
+                console.error('Failed to create WebSocket:', error);
+                updateConnectionStatus('disconnected');
+                attemptReconnect();
+            }
+        }
+
+        function handleWebSocketMessage(message) {
+            switch(message.type) {
+                case 'connection':
+                    console.log('Connection confirmed:', message);
+                    break;
+
+                case 'heartbeat':
+                    // Keep connection alive
+                    break;
+
+                case 'history':
+                    // Load recent events
+                    if (message.events) {
+                        message.events.forEach(event => {
+                            addEventToFeed(event);
+                        });
+                    }
+                    break;
+
+                case 'stats':
+                    updateDashboardStats(message.data);
+                    break;
+
+                case 'click':
+                    handleClickEvent(message.data);
+                    break;
+
+                case 'conversion':
+                    handleConversionEvent(message.data);
+                    break;
+
+                case 'webhook':
+                    handleWebhookEvent(message.data);
+                    break;
+
+                case 'metric':
+                    handleMetricUpdate(message.data);
+                    break;
+
+                case 'error':
+                    handleError(message.data);
+                    break;
+
+                case 'client_connected':
+                case 'client_disconnected':
+                    updateConnectionCount(message.total_connections);
+                    break;
+            }
+        }
+
+        function handleClickEvent(data) {
+            stats.clicks++;
+            stats.uniqueVisitors.add(data.ip_hash);
+
+            // Update metrics
+            updateMetric('clicks-today', stats.clicks);
+            updateMetric('unique-visitors', stats.uniqueVisitors.size);
+
+            // Update click chart
+            clickHistory.push(1);
+            clickHistory.shift();
+            updateClickChart();
+
+            // Add to event feed
+            addEventToFeed({
+                type: 'click',
+                data: data,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        function handleConversionEvent(data) {
+            stats.conversions++;
+            stats.revenue += data.amount;
+
+            // Update metrics
+            updateMetric('conversions-today', stats.conversions);
+            updateMetric('revenue-today', `$${stats.revenue.toFixed(2)}`);
+            updateMetric('avg-order-value', `$${(stats.revenue / stats.conversions).toFixed(0)}`);
+            updateMetric('platform-earnings', `$${(data.platform_fee || 0).toFixed(2)}`);
+
+            // Update conversion rate
+            const rate = stats.clicks > 0 ? (stats.conversions / stats.clicks * 100).toFixed(1) : 0;
+            updateMetric('conversion-rate', `${rate}%`);
+
+            // Add to event feed
+            addEventToFeed({
+                type: 'conversion',
+                data: data,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        function handleWebhookEvent(data) {
+            stats.webhooks++;
+            updateMetric('webhooks-processed', stats.webhooks);
+
+            // Add to event feed
+            addEventToFeed({
+                type: 'webhook',
+                data: data,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        function handleMetricUpdate(data) {
+            if (data.metric_type === 'latency') {
+                updateMetric('api-latency', `${data.value}ms`);
+            }
+        }
+
+        function handleError(data) {
+            showAlert(`${data.error_type}: ${data.message}`, data.severity);
+
+            addEventToFeed({
+                type: 'error',
+                data: data,
+                timestamp: new Date().toISOString()
+            });
+        }
+
+        function updateDashboardStats(data) {
+            if (data.clicks_today !== undefined) {
+                stats.clicks = data.clicks_today;
+                updateMetric('clicks-today', stats.clicks);
+            }
+            if (data.conversions_today !== undefined) {
+                stats.conversions = data.conversions_today;
+                updateMetric('conversions-today', stats.conversions);
+            }
+            if (data.revenue_today !== undefined) {
+                stats.revenue = data.revenue_today;
+                updateMetric('revenue-today', `$${stats.revenue.toFixed(2)}`);
+            }
+            if (data.websocket_connections !== undefined) {
+                updateMetric('ws-connections', data.websocket_connections);
+            }
+        }
+
+        function updateMetric(elementId, value) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = value;
+                element.classList.add('updated');
+                setTimeout(() => element.classList.remove('updated'), 500);
+            }
+        }
+
+        function updateClickChart() {
+            const chart = document.getElementById('clicks-chart');
+            const max = Math.max(...clickHistory, 1);
+
+            chart.innerHTML = clickHistory.map(value =>
+                `<div class="chart-bar" style="height: ${(value / max) * 100}%;"></div>`
+            ).join('');
+        }
+
+        function addEventToFeed(event) {
+            const feed = document.getElementById('event-feed');
+            eventCount++;
+
+            const eventDiv = document.createElement('div');
+            eventDiv.className = `event-item ${event.type}`;
+
+            let icon = '📊';
+            let title = 'Event';
+            let detail = '';
+
+            switch(event.type) {
+                case 'click':
+                    icon = '👆';
+                    title = 'Click';
+                    detail = `Link ${event.data?.slug || 'unknown'} clicked (${event.data?.device_type || 'unknown'})`;
+                    break;
+                case 'conversion':
+                    icon = '💰';
+                    title = 'Conversion';
+                    detail = `Order ${event.data?.order_id || 'unknown'} - $${(event.data?.amount || 0).toFixed(2)}`;
+                    break;
+                case 'webhook':
+                    icon = '🔔';
+                    title = 'Webhook';
+                    detail = `${event.data?.source || 'unknown'} - ${event.data?.status || 'processed'}`;
+                    break;
+                case 'error':
+                    icon = '⚠️';
+                    title = 'Error';
+                    detail = event.data?.message || 'Unknown error';
+                    break;
+            }
+
+            const time = new Date(event.timestamp).toLocaleTimeString();
+
+            eventDiv.innerHTML = `
+                <div class="event-content">
+                    <div class="event-type">${icon} ${title}</div>
+                    <div class="event-detail">${detail}</div>
+                </div>
+                <div class="event-time">${time}</div>
+            `;
+
+            feed.insertBefore(eventDiv, feed.firstChild);
+
+            // Remove old events
+            while (feed.children.length > maxEvents) {
+                feed.removeChild(feed.lastChild);
+            }
+
+            // Update event count
+            document.getElementById('event-count').textContent = `${eventCount} events`;
+        }
+
+        function updateConnectionStatus(status) {
+            const statusText = document.getElementById('ws-status');
+            const statusDot = document.getElementById('status-dot');
+            const reconnectBtn = document.getElementById('reconnect-btn');
+
+            statusDot.className = `status-dot ${status}`;
+
+            switch(status) {
+                case 'connected':
+                    statusText.textContent = 'Connected';
+                    reconnectBtn.style.display = 'none';
+                    hideAlert();
+                    break;
+                case 'connecting':
+                    statusText.textContent = 'Connecting...';
+                    reconnectBtn.style.display = 'none';
+                    break;
+                case 'disconnected':
+                    statusText.textContent = 'Disconnected';
+                    reconnectBtn.style.display = 'inline-block';
+                    showAlert('WebSocket disconnected. Attempting to reconnect...', 'warning');
+                    break;
+            }
+        }
+
+        function updateConnectionCount(count) {
+            updateMetric('ws-connections', count);
+            updateMetric('active-users', count);
+        }
+
+        function attemptReconnect() {
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++;
+                updateConnectionStatus('connecting');
+
+                setTimeout(() => {
+                    console.log(`Reconnect attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
+                    connectWebSocket();
+                }, reconnectDelay);
+
+                // Exponential backoff
+                reconnectDelay = Math.min(reconnectDelay * 2, 30000); // Max 30 seconds
+            } else {
+                showAlert('Failed to connect to server. Please check if the API is running.', 'error');
+            }
+        }
+
+        function reconnectWebSocket() {
+            if (ws) {
+                ws.close();
+            }
+            reconnectAttempts = 0;
+            reconnectDelay = 1000;
+            connectWebSocket();
+        }
+
+        function showAlert(message, severity = 'error') {
+            const alertBox = document.getElementById('alert-box');
+            alertBox.textContent = message;
+            alertBox.style.display = 'block';
+
+            if (severity === 'error') {
+                alertBox.style.background = '#fff5f5';
+                alertBox.style.borderColor = '#feb2b2';
+                alertBox.style.color = '#c53030';
+            } else if (severity === 'warning') {
+                alertBox.style.background = '#fffaf0';
+                alertBox.style.borderColor = '#feb2b2';
+                alertBox.style.color = '#c05621';
+            }
+        }
+
+        function hideAlert() {
+            document.getElementById('alert-box').style.display = 'none';
+        }
+
+        // Initialize WebSocket connection
+        window.addEventListener('DOMContentLoaded', () => {
+            connectWebSocket();
+            updateClickChart();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.close();
+            }
+        });
+    </script>
+</body>
+</html>
